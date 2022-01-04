@@ -12,15 +12,10 @@ namespace PasswordGenerator
 {
     public partial class Form1 : Form
     {
-        private List<string> mResult = new List<string>();
-
-        private List<string> mStringList1 = new List<string>();
-        private List<string> mStringList2 = new List<string>();
-        private List<string> mDigitsList = new List<string>();
-
-        private List<int> mPassDigits = new List<int>();
-
-        private bool mDigitsFileGenerated = false;
+        private readonly List<string> _stringList1 = new();
+        private readonly List<string> _stringList2 = new();
+        private readonly List<string> _digitsList = new();
+        private bool _digitsFileGenerated = false;
 
         public Form1()
         {
@@ -29,87 +24,82 @@ namespace PasswordGenerator
 
         private async void button1_Click(object sender, EventArgs e)
         {
-            if (mDigitsFileGenerated)
+            if (_digitsFileGenerated)
             {
-                if(mDigitsList.Count == 0)
-                {
-                    AppendDigitsList(4);
-                }
+                if (_digitsList.Count == 0) AppendDigitsList(4);
 
                 progressBarResult.Value = 0;
 
-                mStringList1.AddRange(passwords1.Text.Split('\n').Where(x => !string.IsNullOrEmpty(x)).Select(x => x.Replace("\t", "")));
-                mStringList2.AddRange(passwords2.Text.Split('\n').Where(x => !string.IsNullOrEmpty(x)).Select(x => x.Replace("\t", "")));
+                _stringList1.AddRange(passwords1.Text.Split('\n').Where(x => !string.IsNullOrEmpty(x))
+                    .Select(x => x.Replace("\t", "")));
+                _stringList2.AddRange(passwords2.Text.Split('\n').Where(x => !string.IsNullOrEmpty(x))
+                    .Select(x => x.Replace("\t", "")));
 
-                progressBarResult.Maximum = mStringList1.Count;
+                progressBarResult.Maximum = _stringList1.Count;
 
                 await ProcessAsync();
             }
             else
+            {
                 MessageBox.Show("You need to generate digits file!");
+            }
         }
 
         private async Task ProcessAsync()
         {
-            SaveFileDialog fileDialog = new SaveFileDialog();
+            var fileDialog = new SaveFileDialog();
 
             if (fileDialog.ShowDialog() == DialogResult.OK)
-            {
-                    for (int i = 0; i < mStringList1.Count; i++)
+                foreach (var string1 in _stringList1)
+                {
+                    foreach (var string2 in _stringList2)
                     {
-                        for (int j = 0; j < mStringList2.Count; j++)
+                        await using var streamWriter = new StreamWriter(fileDialog.FileName, true, Encoding.UTF8);
+
+                        foreach (var digits in _digitsList)
                         {
-                            using (StreamWriter streamWriter = new StreamWriter(fileDialog.FileName, true, Encoding.UTF8))
-                            {
-                                for (int k = 0; k < mDigitsList.Count; k++)
-                                {
-
-                                    await streamWriter.WriteLineAsync($"{mStringList1[i]}{mStringList2[j]}@wp.pl:{mStringList1[i]}{mStringList2[j]}{mDigitsList[k]}");
-                                    await streamWriter.WriteLineAsync($"{mStringList2[j]}{mStringList1[i]}@wp.pl:{mStringList2[j]}{mStringList1[i]}{mDigitsList[k]}");
-                                    await streamWriter.WriteLineAsync($"{mStringList1[i]}.{mStringList2[j]}@wp.pl:{mStringList1[i]}{mStringList2[j]}{mDigitsList[k]}");
-                                    await streamWriter.WriteLineAsync($"{mStringList2[j]}.{mStringList1[i]}@wp.pl:{mStringList2[j]}{mStringList1[i]}{mDigitsList[k]}");
-
-                                }
-                            }
+                            await streamWriter.WriteLineAsync($"{string1}{string2}@wp.pl:{string1}{string2}{digits}");
+                            await streamWriter.WriteLineAsync($"{string2}{string1}@wp.pl:{string2}{string1}{digits}");
+                            await streamWriter.WriteLineAsync($"{string1}.{string2}@wp.pl:{string1}{string2}{digits}");
+                            await streamWriter.WriteLineAsync($"{string2}.{string1}@wp.pl:{string2}{string1}{digits}");
                         }
-
-                        progressBarResult.Invoke((MethodInvoker)delegate
-                        {
-                            progressBarResult.Value++;
-                        });
                     }
-                
-            }
 
+                    progressBarResult.Invoke((MethodInvoker) delegate { progressBarResult.Value++; });
+                }
         }
 
         private void AppendDigitsList(int digit)
-            => mDigitsList.AddRange(File.ReadAllLines(DigitFilePath(digit)));
+        {
+            _digitsList.AddRange(File.ReadAllLines(DigitFilePath(digit)));
+        }
 
         private void Form1_Load(object sender, EventArgs e)
-            => CheckGeneratedDigitsFileExistence();
+        {
+            CheckGeneratedDigitsFileExistence();
+        }
 
         private string DigitFilePath(int digit)
-            => $"{digit}-digits-gen.txt";
+        {
+            return $"{digit}-digits-gen.txt";
+        }
 
         private void CheckGeneratedDigitsFileExistence()
         {
-            int b = (int)numericUpDown1.Value;
+            var num = (int) numericUpDown1.Value;
+            _digitsFileGenerated = File.Exists(DigitFilePath(num));
 
-            mDigitsFileGenerated = File.Exists(DigitFilePath(b));
-
-            if (mDigitsFileGenerated)
-                label2.Text = "STATUS: Generated";
-            else
-                label2.Text = "STATUS: Not generated";
+            label2.Text = _digitsFileGenerated ? "STATUS: Generated" : "STATUS: Not generated";
         }
 
         private void numericUpDown1_ValueChanged(object sender, EventArgs e)
-            => CheckGeneratedDigitsFileExistence();
+        {
+            CheckGeneratedDigitsFileExistence();
+        }
 
         private void button2_Click(object sender, EventArgs e)
         {
-            if (!mDigitsFileGenerated)
+            if (!_digitsFileGenerated)
             {
                 /*AppendDigitsList((int)numericUpDown1.Value);
 
@@ -126,56 +116,55 @@ namespace PasswordGenerator
 
                 progressBarDigit.Maximum = 10000;
 
-                for (int i = 0; i < 10000; i++)
+                for (var i = 0; i < 10000; i++)
                 {
+                    switch (i)
+                    {
+                        case < 10:
+                            _digitsList.AddRange(new[]
+                            {
+                                i.ToString("0000"),
+                                i.ToString("000"),
+                                i.ToString("00"),
+                                i.ToString()
+                            });
+                            break;
 
-                    if(i < 10)
-                    {
-                        mDigitsList.AddRange(new[]
-                        {
-                            i.ToString("0000"),
-                            i.ToString("000"),
-                            i.ToString("00"),
-                            i.ToString()
-                        });
-                    }
+                        case < 100 and >= 10:
+                            _digitsList.AddRange(new[]
+                            {
+                                i.ToString("0000"),
+                                i.ToString("000"),
+                                i.ToString()
+                            });
+                            break;
 
-                    else if(i < 100 && i >= 10)
-                    {
-                        mDigitsList.AddRange(new[]
-                        {
-                            i.ToString("0000"),
-                            i.ToString("000"),
-                            i.ToString()
-                        });
-                    }
-                    
-                    else if(i < 1000 && i >= 100)
-                    {
-                        mDigitsList.AddRange(new[]
-                        {
-                            i.ToString("0000"),
-                            i.ToString()
-                        });
-                    }                    
-                    
-                    else if(i < 10000 && i >= 1000)
-                    {
-                        mDigitsList.Add(i.ToString());
+                        case < 1000 and >= 100:
+                            _digitsList.AddRange(new[]
+                            {
+                                i.ToString("0000"),
+                                i.ToString()
+                            });
+                            break;
+
+                        case < 10000 and >= 1000:
+                            _digitsList.Add(i.ToString());
+                            break;
                     }
 
 
                     progressBarDigit.Value += 1;
-                      
                 }
 
 
-                File.WriteAllLines(DigitFilePath(4), mDigitsList);
+                File.WriteAllLines(DigitFilePath(4), _digitsList);
                 AppendDigitsList(4);
                 CheckGeneratedDigitsFileExistence();
             }
             else
+            {
                 MessageBox.Show("File already generated!");
+            }
         }
     }
 }
